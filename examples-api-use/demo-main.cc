@@ -233,7 +233,7 @@ class ImageScroller : public DemoRunner {
 public:
   // Scroll image with "scroll_jumps" pixels every "scroll_ms" milliseconds.
   // If "scroll_ms" is negative, don't do any scrolling.
-  ImageScroller(RGBMatrix *m, int scroll_jumps, int scroll_ms = 30)
+  ImageScroller(RGBMatrix *m, int scroll_jump, int scroll_ms = 30)
     : DemoRunner(m), scroll_jumps_(scroll_jumps),
       scroll_ms_(scroll_ms),
       horizontal_position_(0),
