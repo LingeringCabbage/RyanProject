@@ -5,6 +5,7 @@ import threading
 from dotenv import load_dotenv
 from typing import List, Callable
 
+import yfinance as yf
 from polygon import RESTClient
 from finnhub import Client
 
@@ -18,6 +19,7 @@ class MarketData:
         self.client = Client(api_key=FINNHUB_API_KEY)
         self.tickers = []
         self.tickers_data = []
+        self.index_fetch_counter = 0
 
     def get_market_data(self, symbol):
         """
@@ -29,19 +31,31 @@ class MarketData:
     def load_tickers_background(self, tickers: List[str]):
         """Super simple version - just start and forget"""
         def _load():
-            tickers_data = []
+            tickers_data = self.tickers_data.copy() or [("", "", "") for _ in range(len(tickers))]
             for i, ticker in enumerate(tickers):
                 if i > 0 and i % 50 == 0:
                     time.sleep(60)
                 # print(f"Loading {ticker}...")
-                curr_data = self.get_market_data(ticker)
-                if curr_data["d"] is None:
-                    tickers_data.append(("RYTARD", "TOUCH", "ME"))
-                else:
-                    curr_price = round(curr_data["c"], 2)
-                    curr_difference = round(curr_data["d"], 2)
-                    tickers_data.append((ticker, str(curr_price), str(curr_difference)))
+                try:
+                    if ticker[:1] == "^":
+                        if self.index_fetch_counter == 0:
+                            curr_data = yf.Ticker(ticker).fast_info
+                            curr_price = round(curr_data["lastPrice"], 2)
+                            curr_percent_change = round(((curr_data["lastPrice"] - curr_data["previousClose"]) / curr_data["previousClose"]) * 100, 2)
+                    else:
+                        curr_data = self.get_market_data(ticker)
+                        if curr_data["dp"] is None:
+                            raise Exception("No data")
+                        else:
+                            curr_price = round(curr_data["c"], 2)
+                            curr_percent_change = round(curr_data["dp"], 2)
+                    tickers_data[i] = (ticker, str(curr_price), str(curr_percent_change))
+                except Exception as e:
+                    pass
             # callback(tickers_data)
+            self.index_fetch_counter += 1
+            if self.index_fetch_counter == 100:
+                self.index_fetch_counter = 0
             self.tickers_data = tickers_data
         
         thread = threading.Thread(target=_load, daemon=True)
